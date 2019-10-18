@@ -329,23 +329,19 @@ def make_all(df_analysis, all_df, all_keys, start_info_list, end_info_list, shee
         acc_perf = acc_perf_df.loc[[key]]
         R2_perf = R2_perf_df.loc[[key]]
 
+        
+        # PROGNOSIS PLOT
         if key[0:3] == 'Reg':
             plot_prognosis(file, df, key, sheet, colors_adj)
-
-        
+            
         #PRINTOUT
         print('\nAccumulated performance [percentage deviation]: ref: {:.2f}, spring_temp: {:.2f}, temp: {:.2f}, ltm: {:.2f}'.format(acc_perf['ref'][0], acc_perf['spring_temp'][0], acc_perf['temp'][0], acc_perf['ltm'][0]))
         print('Profile correlation performance [R2 value]: ref: {:.2f}, spring_temp: {:.2f}, temp: {:.2f}, ltm: {:.2f}'.format(R2_perf['ref'][0], R2_perf['spring_temp'][0], R2_perf['temp'][0], R2_perf['ltm'][0]))
         
-        # ANALYSIS PLOT
+        # PLOTS: ANALYSIS AND WHOLE PERIOD
         subplot_acc_R2(df, key, sheet, vhh)
         subplot_acc_R2(df_long, key, sheet, vhh, long=True)
-        #plot_R2(df, catchment, vhh)
-        #plot_accumulate(df, catchment, vhh)
-
-        # LONG PLOT
-        #plot_R2(df_long,catchment,vhh,long=True)
-        #plot_accumulate(df_long,catchment,vhh,long=True)
+        
 
 
 
@@ -518,7 +514,7 @@ def plot_prognosis(file, df, key, sheet, colors_adj):
 
 
                 
-            fig, ax1 = plt.subplots(figsize=(16,16))
+            fig, ax1 = plt.subplots(figsize=(12,12))
             
             
             ax1.plot(df['ltmSNOW_S'], ':', color='plum', linewidth=3.0, label = 'ltmSNOW_S')
@@ -529,19 +525,16 @@ def plot_prognosis(file, df, key, sheet, colors_adj):
             ax2.plot(df['ltmQ_N_FB'].cumsum(),':', color='plum', linewidth=3.0, label='ltmQ_N_FB')
             ax2.set_ylabel('accumulated inflow [GWh]')
             
-            plt.title('Prognosis week before and after snow updates (p.50)')
+            plt.title('{}: Prognosis week before and after snow updates (p.50)'.format(key))
 
             #Fix dates for x-axis
             plt.gcf().autofmt_xdate()
             
-            #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-            y_max = max(df['meanQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), df['ltmQ_N_FB'].cumsum().max(), df['tempQ_N_FB'].cumsum().max(), df['refQ_N_FB'].cumsum().max())*1.03
-            ax1.set_ylim(0,y_max)
-            ax2.set_ylim(0,y_max)
             
             print('\nModels updated in explicit weeek:')
             for i in range(len(weeks_bf)):
                 print("{}: {}".format(weeks_aft[i],snowjust_dict[weeks_aft[i]]))
+                
                 
                 #ax1 Snow magazine:
                 #Plots here the observed using the start and end of the first prognosis
@@ -552,8 +545,16 @@ def plot_prognosis(file, df, key, sheet, colors_adj):
                 #ax2 accumulated inflow:
                 #Plots here the observed using the start and end of the first prognosis
                 #Plotting the prognosis accumulated started from the ltmQ_N_FB
-                ax2.plot(q_bf[weeks_bf[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_bf[weeks_bf[i]].dropna().index[0]], '-.', color=colors_adj[weeks_aft[i]], linewidth=3.0)
-                ax2.plot(q_aft[weeks_aft[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_aft[weeks_aft[i]].dropna().index[0]], color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_aft[i])
+                acc_q_bf = q_bf[weeks_bf[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_bf[weeks_bf[i]].dropna().index[0]]
+                acc_q_aft = q_aft[weeks_aft[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_aft[weeks_aft[i]].dropna().index[0]]
+                ax2.plot(acc_q_bf, '-.', color=colors_adj[weeks_aft[i]], linewidth=3.0)
+                ax2.plot(acc_q_aft, color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_aft[i])
+                
+                
+                #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
+                y_max = max(df['meanQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
+                ax1.set_ylim(0,y_max)
+                ax2.set_ylim(0,y_max)
                 
              
             ax1.yaxis.tick_right()
