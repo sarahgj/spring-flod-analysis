@@ -42,17 +42,35 @@ def read_from_SMG(names, vhhQ_OBSE_list, sheet):
         ltmQ_N_FB = '/HBV/{}-{}/LTM/UPDAT/Q_N_FB'.format(ltm,catchment)
         tempQ_N_FB = '/HBV/{}-{}/TEMP/UPDAT/Q_N_FB'.format(ltm,catchment)
         ltmQ_OBSE = '/HBV/{}-{}/LTM/UPDAT/Q_OBSE'.format(ltm,catchment)
-        meanQ_N_FB = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/Q_N_FB'.format(ltm,catchment)
+        normQ_N_FB = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/Q_N_FB'.format(ltm,catchment)
         #SWE
         refSNOW_S = '/HBV/{}-{}/REF/UPDAT/SNOW_S'.format(ltm,catchment)
         ltmSNOW_S = '/HBV/{}-{}/LTM/UPDAT/SNOW_S'.format(ltm,catchment)
         tempSNOW_S = '/HBV/{}-{}/TEMP/UPDAT/SNOW_S'.format(ltm,catchment)
-        meanSNOW_S = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/SNOW_S'.format(ltm,catchment)
+        normSNOW_S = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/SNOW_S'.format(ltm,catchment)
 
-        keys = [refQ_N_FB, ltmQ_N_FB, tempQ_N_FB, ltmQ_OBSE, meanQ_N_FB, refSNOW_S, ltmSNOW_S, tempSNOW_S, meanSNOW_S]
-        cols = ['refQ_N_FB', 'ltmQ_N_FB', 'tempQ_N_FB', 'ltmQ_OBSE', 'meanQ_N_FB', 'refSNOW_S', 'ltmSNOW_S', 'tempSNOW_S', 'meanSNOW_S']
+        keys_q_s = [refQ_N_FB, ltmQ_N_FB, tempQ_N_FB, ltmQ_OBSE, normQ_N_FB, refSNOW_S, ltmSNOW_S, tempSNOW_S, normSNOW_S]
+        cols_q_s = ['refQ_N_FB', 'ltmQ_N_FB', 'tempQ_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'refSNOW_S', 'ltmSNOW_S', 'tempSNOW_S', 'normSNOW_S']
+        
+        #resources
+        evapor = '/HBV/{}-{}/Default/UPDAT/EVAPOR'.format(ltm,catchment)
+        gr_wat = '/HBV/{}-{}/Default/UPDAT/GR_WAT'.format(ltm,catchment)
+        soil_m = '/HBV/{}-{}/Default/UPDAT/SOIL_M'.format(ltm,catchment)
+        temper = '/HBV/{}-{}/Default/UPDAT/TEMPER'.format(ltm,catchment)
+        snow_s = '/HBV/{}-{}/Default/UPDAT/SNOW_S'.format(ltm,catchment)
+        precip = '/HBV/{}-{}/Default/UPDAT/PRECIP'.format(ltm,catchment)
+        norm_evapor = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/EVAPOR'.format(ltm,catchment)
+        norm_gr_wat = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/GR_WAT'.format(ltm,catchment)
+        norm_soil_m = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/SOIL_M'.format(ltm,catchment)
+        norm_temper = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/TEMPER'.format(ltm,catchment)
+        norm_snow_s = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/SNOW_S'.format(ltm,catchment)
+        norm_precip = '/HBV/{}-{}/Default/UPDAT/Mean/198009-201009/PRECIP'.format(ltm,catchment)
+        #Bounded water = snow + groundwater + soil moisture
+        
+        keys_res = [evapor, gr_wat, soil_m, temper, snow_s, precip, norm_evapor, norm_gr_wat, norm_soil_m, norm_temper, norm_snow_s, norm_precip]
+        cols_res = ['evapor', 'gr_wat', 'soil_m', 'temper', 'snow_s', 'precip', 'norm_evapor', 'norm_gr_wat', 'norm_soil_m', 'norm_temper', 'norm_snow_s', 'norm_precip']
 
-        return keys, cols
+        return keys_q_s, cols_q_s, keys_res, cols_res
     
     def get_region_keys(region, country):
         
@@ -70,17 +88,38 @@ def read_from_SMG(names, vhhQ_OBSE_list, sheet):
         ltmQ_N_FB = '/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         tempQ_N_FB = '/TEMP/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         ltmQ_OBSE = '/{}-{}{}-D1050A5R-0105'.format(country,region,dotsSnow)
-        meanQ_N_FB = '/Mean/198009-201009/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
+        normQ_N_FB = '/Mean/198009-201009/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         #SWE
         refSNOW_S = '/REF/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         ltmSNOW_S = '/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         tempSNOW_S = '/TEMP/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
-        meanSNOW_S = '/Mean/198009-201009/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
+        normSNOW_S = '/Mean/198009-201009/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         
-        keys = [refQ_N_FB, ltmQ_N_FB, tempQ_N_FB, ltmQ_OBSE, meanQ_N_FB, refSNOW_S, ltmSNOW_S, tempSNOW_S, meanSNOW_S]
-        cols = ['refQ_N_FB', 'ltmQ_N_FB', 'tempQ_N_FB', 'ltmQ_OBSE', 'meanQ_N_FB',  'refSNOW_S', 'ltmSNOW_S', 'tempSNOW_S', 'meanSNOW_S']
+        keys_q_s = [refQ_N_FB, ltmQ_N_FB, tempQ_N_FB, ltmQ_OBSE, normQ_N_FB, refSNOW_S, ltmSNOW_S, tempSNOW_S, normSNOW_S]
+        cols_q_s = ['refQ_N_FB', 'ltmQ_N_FB', 'tempQ_N_FB', 'ltmQ_OBSE', 'normQ_N_FB',  'refSNOW_S', 'ltmSNOW_S', 'tempSNOW_S', 'normSNOW_S']
         
-        return keys, cols
+        #resources
+        if region[0:3] == 'Reg':
+            region += '.'
+        evapor = '{}-{}..........-D0001A5B-0105'.format(country,region)
+        gr_wat = '{}-{}.........-D2000A5B-0105'.format(country,region)
+        soil_m = '{}-{}.........-D2001A5B-0105'.format(country,region)
+        temper = '{}-{}.........-D0017A3R-0114'.format(country,region)
+        snow_s = '{}-{}Norg-Norge.........-D2003A5R-0105'.format(country,region)
+        precip = '{}-{}Norg-Norge.........-D0000A5R-0105'.format(country,region)
+        norm_evapor = '/Mean/198009-201009/{}-{}..........-D0001A5B-0105'.format(country,region)
+        norm_gr_wat = '/Mean/198009-201009/{}-{}.........-D2000A5B-0105'.format(country,region)
+        norm_soil_m = '/Mean/198009-201009/{}-{}.........-D2001A5B-0105'.format(country,region)
+        norm_temper = '/Mean/198009-201009/{}-{}.........-D0017A3R-0114'.format(country,region) #rather use .GWH???
+        norm_snow_s = '/Mean/198009-201009/{}-{}Norg-Norge.........-D2003A5R-0105'.format(country,region)
+        norm_precip = '/Mean/198009-201009/{}-{}Norg-Norge.........-D0000A5R-0105'.format(country,region)
+        #Bounded water = snow + groundwater + soil moisture
+        
+        keys_res = [evapor, gr_wat, soil_m, temper, snow_s, precip, norm_evapor, norm_gr_wat, norm_soil_m, norm_temper, norm_snow_s, norm_precip]
+        cols_res = ['evapor', 'gr_wat', 'soil_m', 'temper', 'snow_s', 'precip', 'norm_evapor', 'norm_gr_wat', 'norm_soil_m', 'norm_temper', 'norm_snow_s', 'norm_precip']
+        
+        
+        return keys_q_s, cols_q_s, keys_res, cols_res
     
     
     #Specifying timezone
@@ -100,19 +139,19 @@ def read_from_SMG(names, vhhQ_OBSE_list, sheet):
         
         #getting keys to read and col names for final df
         if sheet[:3] == 'LTM':
-            keys, cols = get_catchment_keys(key, sheet)
+            keys_q_s, cols_q_s, keys_res, cols_res = get_catchment_keys(key, sheet)
         else:
-            keys, cols = get_region_keys(key, sheet)
+            keys_q_s, cols_q_s = get_region_keys(key, sheet)
             
         #Adding vhh_Q_OBSE if it exist to keys and cols
         if str(vhh) != 'nan':
             vhhQ_OBSE = '/{}'.format(vhh)
-            keys.append(vhhQ_OBSE)
-            cols.append('vhhQ_OBSE')
+            keys_q_s.append(vhhQ_OBSE)
+            cols_q_s.append('vhhQ_OBSE')
         
         #Reading series from SMG_PROD
-        df = wrapper.read(keys)
-        df.columns = cols
+        df = wrapper.read(keys_q_s)
+        df.columns = cols_q_s
         
         #Adding spring_temp, read from local csv files
         temp_df = pd.read_csv(r'TEMP\TEMP_{}_{}.csv'.format(sheet,key), index_col=0, parse_dates=True) 
@@ -258,10 +297,57 @@ def calc_performance(df_analysis_list, models):
         #Add performance results to dataframe
         acc_perf_df.loc[model] = acc_perf
         R2_perf_df.loc[model] = R2_perf
-
+        
+    
     return acc_perf_df, R2_perf_df
 
 
+    
+
+def summary_table(df_analysis_list, models, sheet):
+    
+    # transform m^3/s to Mm^3 if neccesary
+    if sheet[0:3] == 'LTM':
+        #ax1b.set_ylabel('accumulated inflow Q [Mm3]')
+        transform = (24*3600)/1000000 # m^3/s accumulated to Mm^3
+    else:
+        #ax1b.set_ylabel('accumulated inflow Q [GWh]')
+        transform = 1
+        
+        
+    # Initializing result dataframes for each model
+    acc_inf = pd.DataFrame(columns = ['Q_OBSE','REF', 'spring_temp', 'TEMP','LTM', 'NORMAL'])
+
+    for df, model in zip(df_analysis_list, models):
+
+        # Picking out the columns of the dataframe and calculating the accumulated inflow over the analysis period
+        obse = df['ltmQ_OBSE'].cumsum()[-1]*transform
+        ref = df['refQ_N_FB'].cumsum()[-1]*transform - obse
+        temp = df['tempQ_N_FB'].cumsum()[-1]*transform - obse
+        spring_temp = df['spring_tempQ_N_FB'].cumsum()[-1]*transform - obse
+        ltm = df['ltmQ_N_FB'].cumsum()[-1]*transform - obse
+        norm = df['normQ_N_FB'].cumsum()[-1]*transform - obse
+        
+        #Add accumulated results to dataframe
+        acc_inf.loc[model] = [obse,ref,spring_temp,temp,ltm,norm]
+        
+    if sheet[0:3] == 'LTM':
+        unit = 'Mm^3'
+        transform = 1
+    else:
+        unit ='TWh'
+        trnasform = 1000
+        
+    df = (acc_inf/transform).round(1)  
+    
+    df_styled = df.style.set_caption('Accumulated inflow ({}) deviation from Q_OBSE for the spring flod/analysis period.'.format(unit))\
+    .bar(subset=['REF', 'spring_temp', 'TEMP','LTM', 'NORMAL'], align='zero', color=['#23c6c8', '#f8ac59'])
+       
+    return df_styled
+
+     
+    
+    
 
     
 def acc_performance(fasit, models):
@@ -284,7 +370,7 @@ def R2_performance(fasit, models):
     # Calculating
     performance = []
     for model in models:
-        performance.append(1 - sum(np.power(fasit - model, 2)) / sum(np.power(fasit - np.mean(fasit), 2)))
+        performance.append(1 - sum(np.power(fasit - model, 2)) / (sum(np.power(fasit - np.mean(fasit), 2)) + 0.00001))
     return performance
 
 
@@ -358,14 +444,14 @@ def subplot_acc_R2(df, key, sheet, vhh=False, long=False):
     
     # ACC PLOT
     #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-    y_max = max(df['meanQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), df['ltmQ_N_FB'].cumsum().max(), df['tempQ_N_FB'].cumsum().max(), df['refQ_N_FB'].cumsum().max())*1.03
+    y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), df['ltmQ_N_FB'].cumsum().max(), df['tempQ_N_FB'].cumsum().max(), df['refQ_N_FB'].cumsum().max())*1.03
     color = 'k'
     if sheet[0:3] == 'LTM':
         ax1.set_ylabel('snow magasine SNOW_S [mm]', color=color)
     else:
         ax1.set_ylabel('snow magasine SNOW_S [GWh]', color=color)
         ax1.set_ylim(0, y_max)
-    ax1.plot(df['meanSNOW_S'],'-', color='moccasin', linewidth=5.0, label = 'SNOW_S_1980-2010')
+    ax1.plot(df['normSNOW_S'],'-', color='moccasin', linewidth=5.0, label = 'SNOW_S_1980-2010')
     ax1.plot(df['ltmSNOW_S'],'-', color='plum', linewidth=4.0, label = 'ltmSNOW_S')
     ax1.plot(df['tempSNOW_S'],':', color='red', linewidth=3.0, label = 'tempSNOW_S')
     ax1.plot(df['spring_tempSNOW_S'],':', color='deepskyblue', linewidth=2.0, label = 'spring_tempSNOW_S')
@@ -385,7 +471,7 @@ def subplot_acc_R2(df, key, sheet, vhh=False, long=False):
         ax1b.set_ylabel('accumulated inflow Q [GWh]', color=color)
         transform = 1
         ax1b.set_ylim(0,y_max)
-    ax1b.plot(df['meanQ_N_FB'].cumsum()*transform,'-', color='moccasin', linewidth=5.0, label = 'Q_N_FB_1980-2010')
+    ax1b.plot(df['normQ_N_FB'].cumsum()*transform,'-', color='moccasin', linewidth=5.0, label = 'Q_N_FB_1980-2010')
     if vhh:
         ax1b.plot(df['vhhQ_OBSE'].cumsum()*transform,'-', color='grey', linewidth=4.0, label = 'vhhQ_OBSE')
     ax1b.plot(df['ltmQ_OBSE'].cumsum()*transform,'-k', linewidth=4.0, label = 'ltmQ_OBSE')
@@ -397,7 +483,7 @@ def subplot_acc_R2(df, key, sheet, vhh=False, long=False):
     handles, labels = ax1b.get_legend_handles_labels()
     ax1b.legend(handles[::-1], labels[::-1], loc='center right')
   
-    #max_list=[df['meanQ_N_FB'].cumsum()*transform,df['ltmQ_OBSE'].cumsum()*transform]
+    #max_list=[df['normQ_N_FB'].cumsum()*transform,df['ltmQ_OBSE'].cumsum()*transform]
     #ax1.set_ylim(0, max(max_list)+max(max_list)*0.1)
    
     
@@ -407,7 +493,7 @@ def subplot_acc_R2(df, key, sheet, vhh=False, long=False):
         ax2.set_ylabel('inflow [m3/s]', color=color)
     else:
         ax2.set_ylabel('inflow [GWh]', color=color)
-    ax2.plot(df['meanQ_N_FB'],'-', color='moccasin', linewidth=5.0, label = 'Q_N_FB_1980-2010')
+    ax2.plot(df['normQ_N_FB'],'-', color='moccasin', linewidth=5.0, label = 'Q_N_FB_1980-2010')
     if vhh:
         ax2.plot(df['vhhQ_OBSE'],'-', color='grey', linewidth=4.0, label = 'vhhQ_OBSE')
     ax2.plot(df['ltmQ_OBSE'],'-k', linewidth=4.0, label = 'ltmQ_OBSE')
@@ -430,7 +516,9 @@ def subplot_acc_R2(df, key, sheet, vhh=False, long=False):
         plt.title('{}: Melting/Analysis Period'.format(key))
           
     plt.show()
-
+    
+    
+   
   
     
     
@@ -552,7 +640,7 @@ def plot_prognosis(file, df, key, sheet, colors_adj):
                 
                 
                 #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-                y_max = max(df['meanQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
+                y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
                 ax1.set_ylim(0,y_max)
                 ax2.set_ylim(0,y_max)
                 
@@ -846,8 +934,9 @@ def box_plot(acc_perf_df):
     for flier in bp['fliers']:
         flier.set(marker='o', markersize='5', markerfacecolor='black',markeredgewidth='0', markeredgecolor='black')
 
-    ## Custom x-axis labels
+    ## Custom x-axis labels and ylabel
     ax.set_xticklabels(['ref', 'spring_temp', 'temp', 'ltm'])
+    plt.ylabel('Accumulated deviation from Q_OBSE [%]')
 
     ## Remove top axes and right axes ticks
     ax.get_xaxis().tick_bottom()
