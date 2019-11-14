@@ -16,36 +16,44 @@ import re
 from sklearn.linear_model import LinearRegression 
 
 from statkraft.ssa.wrappers import ReadWrapper
-
-
-
-def main_read_excel(sheet: str, file: str) -> [[str], [str], [str], [str], [str]]:
+  
+        
+        
+def read_from_excel(sheet: str, file: str) -> [[str], [str], [str], [str], [str]]:
     """This function reads the excel file for this program (must be in the main folder)."""
     
-    Sheet = pd.read_excel(file,sheet) 
-    keys = Sheet['Område:'].values
-    vhhQ_OBSE_list = Sheet['VHH tilsig:'].values
-    comments_list = Sheet['Kommentar:']
-    exluded_list = Sheet['Ikke analyserbar:']
-    start_list = Sheet['Start:']
-    end_list = Sheet['Slutt:']
-    
-    return keys, vhhQ_OBSE_list, comments_list, exluded_list, start_list, end_list
-
-def saved_runs_excel(file: str) -> [[str], [str]]:
-    """This function reads the excel file for this program (must be in the main folder)."""
-    
-    Sheet = pd.read_excel(file,'saved abat runs') 
-    models = Sheet['Saved models:'].values
-    dates = Sheet['Started from:'].values
+    #General
+    Sheet2 = pd.read_excel(file,'saved abat runs') 
+    models = Sheet2['Saved models:']
+    dates = Sheet2['Started from:']
     
     print('Time saved models were started from:')
     for model, date in zip(models, dates):
         print('{}: {}'.format(model,date))
+        
+    #From specific sheet
+    Sheet = pd.read_excel(file,sheet) 
+    keys = Sheet['Område:']
+    idnr = Sheet['ID:']
+    start_list = Sheet['Start:']
+    end_list = Sheet['Slutt:']
+    exluded_list = Sheet['Ikke analyserbar:']
+    vhhQ_OBSE_list = Sheet['VHH tilsig:']
+    diff_temp_keys = Sheet['Diff temp key:']
+    comments_list = Sheet['Kommentar:']
+    
+    if sheet[0:3] == 'LTM':
+        if_measured = Sheet['Snømåling:']
+        measured_list = [key for key, x in zip(keys, if_measured) if x=='X' ]
+    else:
+        measured_list = False
+    
+    return keys, idnr, start_list, end_list, exluded_list, vhhQ_OBSE_list, diff_temp_keys, comments_list, measured_list
 
 
 
-def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataFrame], [pd.DataFrame]]:
+
+def read_timeseries(names: list, idnr: list, vhhQ_OBSE_list: list, diff_temp_keys: list, sheet: str, measured_list) -> [[pd.DataFrame], [pd.DataFrame]]:
     """This function reads presaved spring_temp time series from the TEMP folder, presaved ref time series from the REF folder, and temp, ltm and normal series from SMG."""
     
     
@@ -54,23 +62,17 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
         """This function lists all catchment keys that should be read from SMG."""
 
         #inflow
-        #ref1Q_N_FB = '/HBV/{}-{}/REF/UPDAT/Q_N_FB'.format(ltm,catchment)
         ltmQ_N_FB = '/HBV/{}-{}/LTM/UPDAT/Q_N_FB'.format(ltm,catchment)
-        #temp2Q_N_FB = '/HBV/{}-{}/TEMP/UPDAT/Q_N_FB'.format(ltm,catchment)
+        temp2Q_N_FB = '/HBV/{}-{}/TEMP/UPDAT/Q_N_FB'.format(ltm,catchment)
         ltmQ_OBSE = '/HBV/{}-{}/LTM/UPDAT/Q_OBSE'.format(ltm,catchment)
         normQ_N_FB = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/Q_N_FB'.format(ltm,catchment)
         #SWE
-        #ref1SNOW_S = '/HBV/{}-{}/REF/UPDAT/SNOW_S'.format(ltm,catchment)
         ltmSNOW_S = '/HBV/{}-{}/LTM/UPDAT/SNOW_S'.format(ltm,catchment)
-        #temp2SNOW_S = '/HBV/{}-{}/TEMP/UPDAT/SNOW_S'.format(ltm,catchment)
+        temp2SNOW_S = '/HBV/{}-{}/TEMP/UPDAT/SNOW_S'.format(ltm,catchment)
         normSNOW_S = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/SNOW_S'.format(ltm,catchment)
 
-        #keys = [ref1Q_N_FB, ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ref1SNOW_S, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
-        #cols = ['ref1Q_N_FB', 'ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ref1SNOW_S', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
-        keys = [ltmQ_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, normSNOW_S]
-        cols = ['ltmQ_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'normSNOW_S']
-        #keys = [ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
-        #cols = ['ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
+        keys = [ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
+        cols = ['ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
 
         return keys, cols
     
@@ -88,47 +90,66 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
             dotsSnow = '.......'
         
         #inflow
-        #ref1Q_N_FB = '/REF/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         ltmQ_N_FB = '/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
-        #temp2Q_N_FB = '/TEMP/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
+        temp2Q_N_FB = '/TEMP/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         ltmQ_OBSE = '/{}-{}{}-D1050A5R-0105'.format(country,region,dotsSnow)
         normQ_N_FB = '/Mean/198009-201009/{}-{}.NFB{}-D1050A5R-0105'.format(country,region,dotsQ)
         #SWE
-        #ref1SNOW_S = '/REF/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         ltmSNOW_S = '/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
-        #temp2SNOW_S = '/TEMP/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
+        temp2SNOW_S = '/TEMP/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         normSNOW_S = '/Mean/198009-201009/{}-{}{}-D2003A5R-0105'.format(country,region,dotsSnow)
         
-        #keys = [ref1Q_N_FB, ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ref1SNOW_S, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
-        #cols = ['ref1Q_N_FB', 'ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB',  'ref1SNOW_S', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
-        #keys = [ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
-        #cols = ['ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
-        keys = [ltmQ_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, normSNOW_S]
-        cols = ['ltmQ_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'normSNOW_S']
+        keys = [ltmQ_N_FB, temp2Q_N_FB, ltmQ_OBSE, normQ_N_FB, ltmSNOW_S, temp2SNOW_S, normSNOW_S]
+        cols = ['ltmQ_N_FB', 'temp2Q_N_FB', 'ltmQ_OBSE', 'normQ_N_FB', 'ltmSNOW_S', 'temp2SNOW_S', 'normSNOW_S']
         
         return keys, cols
        
     
-    def get_resources_keys(key:str, sheet:str) -> [[str], [str]]:
+    def get_resources_keys(name, nr, temp, sheet) -> [[str], [str]]:
         """This function lists all resources keys that should be read from SMG."""
         
+        if type(nr) != float:
+            key = '{}-{}'.format(name, nr[2:])
+        else:
+            key = name
+            
         if sheet[0:3] == 'LTM':
             ltm = sheet
             catchment = key
             evapor = '/HBV/{}-{}/LTM/UPDAT/EVAPOR'.format(ltm,catchment)
             gr_wat = '/HBV/{}-{}/LTM/UPDAT/GR_WAT'.format(ltm,catchment)
             soil_m = '/HBV/{}-{}/LTM/UPDAT/SOIL_M'.format(ltm,catchment)
-            name, ref = catchment.split('-')
-            dots = (14-len(name))*'.'
-            adj_temp = '/{}-{}{}-D0017F3A-HBV-{}'.format(ltm,name,dots,ref)
             snow_s = '/HBV/{}-{}/LTM/UPDAT/SNOW_S'.format(ltm,catchment)
             precip = '/HBV/{}-{}/LTM/UPDAT/PRECIP'.format(ltm,catchment)
             norm_evapor = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/EVAPOR'.format(ltm,catchment)
             norm_gr_wat = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/GR_WAT'.format(ltm,catchment)
             norm_soil_m = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/SOIL_M'.format(ltm,catchment)
-            orig_temp = '/{}-{}{}-D0017G3A-HBV-{}'.format(ltm,name,dots,ref)
             norm_snow_s = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/SNOW_S'.format(ltm,catchment)
             norm_precip = '/HBV/{}-{}/LTM/UPDAT/Mean/198009-201009/PRECIP'.format(ltm,catchment)
+            
+            #TEMPERATURE
+            if type(temp) != float:
+                temp_name = temp
+            else:
+                temp_name = name
+            dots = (14-len(temp_name))*'.'
+            if type(nr) != float:
+                nr = '-{}'.format(nr[2:])
+            else:
+                nr = ''
+            adj_temp = '/{}-{}{}-D0017F3A-HBV{}'.format(ltm,temp_name,dots,nr)
+            orig_temp = '/{}-{}{}-D0017G3A-HBV{}'.format(ltm,temp_name,dots,nr)
+            
+            
+            if name == 'Hølen_Folgefonn':
+                adj_temp = '/LTM4-Hølen.........-D0017F3A-HBV-050.001'
+                orig_temp = '/LTM4-Hølen.........-D0017G3A-HBV-050.001'
+            elif name == 'Lio....': #FEIL I REFERANSENR.
+                adj_temp = '/LTM2-Lio...........-D0017F3A-HBV-016.013'
+                orig_temp = '/LTM2-Lio...........-D0017G3A-HBV-016.013'
+            elif name == 'Songa_Møsvatn': # AR IKKE NOEN RETTESERIE??
+                adj_temp = '/LTM2-Songa_Møsvatn-D0017B3MI0114'
+                orig_temp = '/HBV/LTM2-Songa_Møsvatn/LTM/UPDAT/TEMPER'
             
             keys = [evapor, gr_wat, soil_m, orig_temp, snow_s, precip, norm_evapor, norm_gr_wat, norm_soil_m, adj_temp, norm_snow_s, norm_precip]
             cols = ['evapor', 'gr_wat', 'soil_m', 'orig_temp', 'snow_s', 'precip', 'norm_evapor', 'norm_gr_wat', 'norm_soil_m', 'adj_temp', 'norm_snow_s', 'norm_precip']
@@ -174,8 +195,13 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
     
     # Reading timeseries for each catchment/region and combining all into one list for inflow and snow magazine
     df_list = list()
-    for key, vhh in zip(names,vhhQ_OBSE_list):
+    for name, nr, vhh in zip(names, idnr, vhhQ_OBSE_list):
         
+        if type(nr) != float:
+            key = '{}-{}'.format(name, nr[2:])
+        else:
+            key = name
+            
         #getting keys to read and col names for final df
         if sheet[:3] == 'LTM':
             keys, cols = get_catchment_keys(key, sheet)
@@ -187,7 +213,7 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
             vhhQ_OBSE = '/{}'.format(vhh)
             keys.append(vhhQ_OBSE)
             cols.append('vhhQ_OBSE')
-        
+            
         #Reading series from SMG_PROD
         df = wrapper.read(keys)
         df.columns = cols
@@ -197,16 +223,11 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
         df['temp1Q_N_FB'] = temp_df['q'].astype(float)
         df['temp1SNOW_S'] = temp_df['s'].astype(float)
         
-        
-        #Adding spring_temp, read from local csv files
-        temp_df = pd.read_csv(r'TEMP2\TEMP_{}_{}.csv'.format(sheet,key), index_col=0, parse_dates=True) 
-        df['temp2Q_N_FB'] = temp_df['q'].astype(float)
-        df['temp2SNOW_S'] = temp_df['s'].astype(float)
-        
-        #Adding ref1, read from local csv files
+       
+        #Adding ref, read from local csv files
         ref_df = pd.read_csv(r'REF\REF_{}_{}.csv'.format(sheet,key), index_col=0, parse_dates=True) 
-        df['ref1Q_N_FB'] = ref_df['q'].astype(float)
-        df['ref1SNOW_S'] = ref_df['s'].astype(float)
+        df['refQ_N_FB'] = ref_df['q'].astype(float)
+        df['refSNOW_S'] = ref_df['s'].astype(float)
         
         
         #Add final df to list of dataframes
@@ -215,9 +236,9 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
         
     # Reading resources
     df_list_resources = list()
-    for key in names:
+    for name, nr, temp in zip(names, idnr, diff_temp_keys): 
         #getting keys to read
-        keys, cols = get_resources_keys(key, sheet)
+        keys, cols = get_resources_keys(name, nr, temp, sheet)
         #Reading series from SMG_PROD
         df_resources = wrapper.read(keys)
         df_resources.columns = cols
@@ -227,182 +248,139 @@ def read_timeseries(names: list, vhhQ_OBSE_list: list, sheet: str) -> [[pd.DataF
 
  
     
-    
-
-def exclude_keys(df_list: [pd.DataFrame], keys: [str], excluded_list:[str]) -> [[pd.DataFrame], [str]]:
-    """This functin takes in the whole list of dataframes for each region/catchment and then exlude dataframes for regions/catchments that for some reason is not okay to use in the analysis. The list of excluded regions/catchments is read from the excel document."""
-    
-    #Analysis
-    df_for_analysis = df_list.copy()
-    keys_for_analysis = list(keys)
-    #remove excluded catchments
-    dont_print = False
-    for i, x, key in zip(range(len(keys)),excluded_list, keys):
-        if x == 'X':
-            if not dont_print:
-                print('\nExcluded in this analysis:')
-            print(key)
-            del df_for_analysis[i]
-            del keys_for_analysis[i]
-            dont_print=True
-    print('')
-    
-    return df_for_analysis, keys_for_analysis
 
 
-def df_analysis_periods(df_list: [pd.DataFrame], all_resources: [pd.DataFrame], start_list: [str], end_list: [str], sheet: str) -> [[pd.DataFrame], [pd.DataFrame], [str], [str]]:
+
+
+def find_analysis_periods(df_list: [pd.DataFrame], all_resources: [pd.DataFrame], start_list: [str], end_list: [str], sheet: str) -> [[str], [str], [str], [str], [str]]:
     """This function chooses the analysis period for each region/catchment and returns the dataframes for that period."""
     
-    # Finding analysis period
-    spring_flod_list = []
-    resources_spring_flod = []
-    spring_flod_info_start = []
-    spring_flod_info_end = []
-    analysis1_list =[]
-    analysis1_info_start = []
-    analysis2_list = []
-    analysis2_info_start = []
+    def find_snow_adj_start(df: pd.DataFrame, end, orig: str, adj: str, adjustment: bool) -> str:
+        # Finding analysis period a snow adjustment
+        found_diff = False
+        for df_orig, df_adj, i in zip(df[orig],df[adj], df.index):
+            if abs(df_orig-df_adj) >= 5:
+                start = i - pd.Timedelta(days=1)
+                found_diff = True
+                break
+        if not found_diff:
+            start = df[orig].index[0]
+        return start
     
+    # Finding analysis period
+    spring_flod_start = []
+    info_chosen_start = []
+    spring_flod_end = []
+    info_chosen_end = []
+    early_adj_start = []
+    late_adj_start = []
     
     for df, resource_df, start_excel, end_excel in zip(df_list, all_resources, start_list, end_list):
 
         #FINDING START OF ANALYSIS
         if len(str(start_excel)) >= 5:
             #sp for spring_flod
-            sp_start = pd.to_datetime(start_excel, format="%Y.%m.%d %H:%M", errors='ignore') 
+            tz = pytz.timezone('Etc/GMT-1')
+            sp_start = tz.localize(pd.to_datetime(start_excel, format="%Y.%m.%d %H:%M", errors='ignore'))
             start_info = 'Analysis start ({}): read from excel.'.format(str(sp_start)[:-9])
         else:
             # Start of analysis is for date of maximum SWE
-            sp_start = df['ref1SNOW_S'].idxmax()
+            sp_start = df['refSNOW_S'].idxmax()
             start_info = 'Analysis start ({}): Peak of snow magasine for ref inndatasett.'.format(str(sp_start)[:-15])
+        
+        info_chosen_start.append(start_info)
+        spring_flod_start.append(sp_start)
 
         #FINDING END OF ANALYSIS
-        year = datetime.date.today().year
-        last_possible_end = dt.datetime(year, 9, 1)
-        
-        if sheet[0:3] == "LTM":
-            df_from_start = df[sp_start:]
-            min_snow = 10
-            maxQ_part = 0.025
-        else:
-            df_from_start = df[sp_start:last_possible_end]
-            min_snow = df_from_start['ref1SNOW_S'].max()*0.08
-            maxQ_part = 0.05
-
         if len(str(end_excel)) >= 5:
-            end = pd.to_datetime(end_excel, format="%Y.%m.%d %H:%M", errors='ignore')
+            tz = pytz.timezone('Etc/GMT-1')
+            end = tz.localize(pd.to_datetime(end_excel, format="%Y.%m.%d %H:%M", errors='ignore'))
             end_info = 'Analysis end ({}): read from excel.'.format(str(end)[:-9])
-        else:
-            # End of analysis is when the SWE has reached a treshold minimum + 7 days for the runoff
-            check_snow = (df_from_start['ref1SNOW_S'] + df_from_start['ltmSNOW_S'])/2
+        else:    
+            df_from_start = df[sp_start:]
+            if sheet[0:3] == "LTM":
+                min_snow = 10
+                maxQ_part = 0.025
+            else:
+                min_snow = df_from_start['refSNOW_S'].max()*0.08
+                maxQ_part = 0.05
+
+            # End of analysis is when the SWE has reached a treshold minimum min_snow + 7 days for the runoff
+            check_snow = (df_from_start['refSNOW_S'] + df_from_start['ltmSNOW_S'])/2
             end = df_from_start[check_snow.gt(min_snow)].index[-1] + dt.timedelta(days=7)
             error = False
 
-            #checking if the end date is set outside the last time of the timeseries
-            if end > df.index[-1]:
+            #finding the first value where the diff in Q between observed and modelled is less or equal (le) than maxQ_part
+            df_from_end = df[end:]
+            check_q = (abs(df_from_end['ltmQ_OBSE']-df_from_end['refQ_N_FB']) + abs(df_from_end['ltmQ_OBSE']-df_from_end['ltmQ_N_FB']))/2
+            min_val = df_from_end['ltmQ_OBSE'].max()*maxQ_part
+
+            if len(df_from_end[check_q.le(min_val)].index) >= 1:
+                end = df_from_end[check_q.le(min_val)].index[0]
+                end_info = 'Analysis end ({}): First day when the inflow models are close to Q_OBSE, one week after the snow magasine goes under {} GWh SWE.'.format(str(end)[:-15], min_snow)
+            else:
+                end = df_from_start['refSNOW_S'].idxmin()
+                #year = datetime.date.today().year
+                #end = dt.datetime(year, 9, 1)
+                end_info = 'WARNING! Analysis end ({}): this script did not find a sufficient estimation of the end of the spring flod, used here date for the ref snow magasine minimum.'.format(str(end)[:-15])
+          #checking if the end date is set outside the last time of the timeseries
+            
+            tz = pytz.timezone('Etc/GMT-1')
+            year = datetime.date.today().year
+            last_possible_end = tz.localize(dt.datetime(year, 9, 1))
+            if (end > last_possible_end) and (sheet[0:3]) != 'LTM':
                 # The chosen date is outside the range of the time series
                 #end = df.index[-1]
-                end = df_from_start['ref1SNOW_S'].idxmin()
-                end_info = 'WARNING, end after last day! Analysis end ({}): this script did not find a sufficient estimation of the end of the spring flod, used here date for the ref snow magasine minimum.'.format(str(end)[:-15])
-              
-            else:
-                #finding the first value where the diff in Q between observed and modelled is less or equal (le) than 10
-                df_from_end = df[end:]
-                check_q = (abs(df_from_end['ltmQ_OBSE']-df_from_end['ref1Q_N_FB']) + abs(df_from_end['ltmQ_OBSE']-df_from_end['ltmQ_N_FB']))/2
-                min_val = df_from_end['ltmQ_OBSE'].max()*maxQ_part
+                end = df_from_start['refSNOW_S'].idxmin()
+                end_info = 'WARNING! Analysis end ({}): this script did not find a sufficient estimation of the end of the spring flod, used here last possible end.'.format(str(end)[:-15])
 
-                if len(df_from_end[check_q.le(min_val)].index) >= 1:
-                    end = df_from_end[check_q.le(min_val)].index[0]
-                    end_info = 'Analysis end ({}): First day when the inflow models are close to Q_OBSE, one week after the snow magasine goes under 20 GWh SWE.'.format(str(end)[:-15])
-                else:
-                    end = df_from_start['ref1SNOW_S'].idxmin()
-                    #year = datetime.date.today().year
-                    #end = dt.datetime(year, 9, 1)
-                    end_info = 'WARNING! Analysis end ({}): this script did not find a sufficient estimation of the end of the spring flod, used here date for the ref snow magasine minimum.'.format(str(end)[:-15])
 
-        spring_flod_list.append(df_from_start[:end])
-        resources_spring_flod.append(resource_df[sp_start:end])
-        spring_flod_info_start.append(start_info)
-        spring_flod_info_end.append(end_info)
+        info_chosen_end.append(end_info)
+        spring_flod_end.append(end)
         
-        
-        def find_period_snow_adjusted(df: pd.DataFrame, end, orig: str, adj: str, adjustment: bool) -> [pd.DataFrame, pd.DataFrame]:
-            # Finding analysis period a snow adjustment
-            found_diff = False
-            for df_orig, df_adj in zip(df[orig],df[adj]):
-                if abs(df_orig-df_adj) >= 5:
-                    if adjustment == 'first':
-                        start = df[df[orig].gt(df_orig)][:'04.04.2019'].index[0] - pd.Timedelta(days=2)
-                    else:
-                        start = df[df[orig].gt(df_orig)].index[-1]
-                    start_info = 'First analysis start ({}): Day befor {} snow adjustment.'.format(str(start)[:-15], adjustment)
-                    analysis_df = df[start:end]
-                    analysis_info = start_info
-                    found_diff = True
-                    break
-            if not found_diff:
-                analysis_df = ''
-                analysis_info = ''
-            return analysis_df, analysis_info
-        
+
         # Finding analysis period for first snow adjustment (same end as above)
-        analysis1_df, analysis1_info = find_period_snow_adjusted(df, end, orig='ref1SNOW_S', adj='temp1SNOW_S', adjustment='first')
-        analysis1_list.append(analysis1_df)
-        analysis1_info_start.append(analysis1_info)
+        start = find_snow_adj_start(df, end, orig='refSNOW_S', adj='temp1SNOW_S', adjustment='early')
+        early_adj_start.append(start)
         # Finding analysis period for second snow adjustment (same end as above)
-        analysis2_df, analysis2_info = find_period_snow_adjusted(df[sp_start:], end, orig='temp1SNOW_S', adj='temp2SNOW_S', adjustment='second')
-        analysis2_list.append(analysis2_df)
-        analysis2_info_start.append(analysis2_info)
+        start = find_snow_adj_start(df[sp_start:], end, orig='temp1SNOW_S', adj='temp2SNOW_S', adjustment='late')
+        late_adj_start.append(start)
 
-    return spring_flod_list, resources_spring_flod, spring_flod_info_start, spring_flod_info_end, analysis1_list, analysis1_info_start, analysis2_list, analysis2_info_start
+    return spring_flod_start, info_chosen_start, spring_flod_end, info_chosen_end, early_adj_start, late_adj_start
+    
         
         
 
-        
+def exclude_keys(all_keys: [str], excluded_list:[str]) -> [str]:
+    """This functin takes in the whole list of dataframes for each region/catchment and then exlude dataframes for regions/catchments that for some reason is not okay to use in the analysis. The list of excluded regions/catchments is read from the excel document."""
+    
+    #Analysis
+    excluded_keys = []
+    #remove excluded catchments
+    dont_print = False
+    for x, key, i in zip(excluded_list, all_keys, range(len(all_keys))):
+        if x == 'X':
+            if not dont_print:
+                print('\nExcluded in this analysis:')
+            print(key)
+            excluded_keys.append(key)
+            dont_print=True
+    print('\n')
+    
+    return excluded_keys
 
-def calc_performance(df_analysis_list: [pd.DataFrame], models: [str]) -> [pd.DataFrame, pd.DataFrame]:
-    """This function is a head funcition for calculations of the performance of the models in the analysis period. See the functions for each calculation for more information: acc_performance, R2_performance."""
-    
-    # Initializing result dataframes for each model
-    acc_perf_df = pd.DataFrame(columns = ['ref1','temp1', 'temp2','ltm'])
-    R2_perf_df = pd.DataFrame(columns = ['ref1', 'temp1', 'temp2', 'ltm'])
-    
-    for df, model in zip(df_analysis_list, models):
 
-        # Picking out the columns of the dataframe to shorten code
-        obse = df['ltmQ_OBSE']
-        ref1 = df['ref1Q_N_FB']
-        temp1 = df['temp1Q_N_FB']
-        #ref2 = df['ref2Q_N_FB']
-        temp2 = df['temp2Q_N_FB']
-        ltm = df['ltmQ_N_FB']
-        
-        # calculating performance and adding to 
-        acc_perf = acc_performance(obse, [ref1, temp1, temp2, ltm])
-        R2_perf = R2_performance(obse, [ref1, temp1, temp2, ltm])
-    
-        #Add performance results to dataframe
-        acc_perf_df.loc[model] = acc_perf
-        R2_perf_df.loc[model] = R2_perf
-        
-    
-    return acc_perf_df, R2_perf_df
 
-    
-
-    
 def acc_performance(fasit: pd.DataFrame, models: [pd.DataFrame]) -> [float]:
     """This function calculates the accumulated performance. The way it is calculated is that we find the accumulated value at the last time of the time series, and then calculates the percentage difference."""
-    
+
     performance = []
     for model in models:
         performance.append((model.cumsum()[-1] - fasit.cumsum()[-1])/fasit.cumsum()[-1]*100)
-        
+
     return performance
 
 
-    
-    
 def R2_performance(fasit: pd.DataFrame, models: [pd.DataFrame]) -> [float]:
     """This function calculates the correlation coefficient between models and a fasit.
     Args:
@@ -411,19 +389,58 @@ def R2_performance(fasit: pd.DataFrame, models: [pd.DataFrame]) -> [float]:
 
     Returns:
         R2: the correlation coefficient bewteen the two series."""
-    
+
     # Calculating
     performance = []
     for model in models:
         performance.append(1 - sum(np.power(fasit - model, 2)) / (sum(np.power(fasit - np.mean(fasit), 2)) + 0.00001))
-        
+
     return performance
+
+
+def calc_performance(df_list: [pd.DataFrame], keys: [str], start_list, end_list, measured_list, excluded_keys=[], R2=False):
+    """This function is a head funcition for calculations of the performance of the models in the analysis period. See the functions for each calculation for more information: acc_performance, R2_performance."""
+        
+    # Initializing result dataframes for each model
+    acc_perf_df = pd.DataFrame(columns = ['ref','temp1', 'temp2','ltm'])
+    R2_perf_df = pd.DataFrame(columns = ['ref', 'temp1', 'temp2', 'ltm'])
+    
+    for df, key, start, end in zip(df_list, keys, start_list, end_list):
+        
+        if key in excluded_keys:
+            continue
+        
+        # Picking out the columns of the dataframe to shorten code
+        df = df[start:end]
+        obse = df['ltmQ_OBSE']
+        ref = df['refQ_N_FB']
+        temp1 = df['temp1Q_N_FB']
+        temp2 = df['temp2Q_N_FB']
+        ltm = df['ltmQ_N_FB']
+        
+        # calculating performance and adding to 
+        acc_perf = acc_performance(obse, [ref, temp1, temp2, ltm])
+    
+        #Add performance results to dataframe
+        acc_perf_df.loc[key] = acc_perf
+        
+    if R2:
+        R2_perf = R2_performance(obse, [ref, temp1, temp2, ltm])
+        R2_perf_df.loc[key] = R2_perf
+        return acc_perf_df, R2_perf_df
+    else:
+        return acc_perf_df
+        
+    
+
+    
 
 
     
 
-def summary_table(df_analysis_list: [pd.DataFrame], models: [str], sheet: str) -> pd.DataFrame:
+def summary_table(df_analysis_list: [pd.DataFrame], all_keys: [str], sheet: str, bold_list) -> pd.DataFrame:
     """This function makes a styled pd.dataframe to be printed as a table of the main results."""
+   
     
     # transform m^3/s to Mm^3 if neccesary
     if sheet[0:3] == 'LTM':
@@ -437,18 +454,18 @@ def summary_table(df_analysis_list: [pd.DataFrame], models: [str], sheet: str) -
     # Initializing result dataframes for each model
     acc_inf = pd.DataFrame(columns = ['OBSE', 'REF', 'TEMP1', 'TEMP2','LTM', 'NORMAL'])
 
-    for df, model in zip(df_analysis_list, models):
+    for df, key in zip(df_analysis_list, all_keys):
 
         # Picking out the columns of the dataframe and calculating the accumulated inflow over the analysis period
         obse = df['ltmQ_OBSE'].cumsum()[-1]*transform
-        ref1 = df['ref1Q_N_FB'].cumsum()[-1]*transform - obse
+        ref = df['refQ_N_FB'].cumsum()[-1]*transform - obse
         temp1 = df['temp1Q_N_FB'].cumsum()[-1]*transform - obse
         temp2 = df['temp2Q_N_FB'].cumsum()[-1]*transform - obse
         ltm = df['ltmQ_N_FB'].cumsum()[-1]*transform - obse
         norm = df['normQ_N_FB'].cumsum()[-1]*transform - obse
         
         #Add accumulated results to dataframe
-        acc_inf.loc[model] = [obse,ref1,temp1,temp2,ltm,norm]
+        acc_inf.loc[key] = [obse,ref,temp1,temp2,ltm,norm]
         
     if sheet[0:3] == 'LTM':
         unit = 'Mm^3'
@@ -459,8 +476,13 @@ def summary_table(df_analysis_list: [pd.DataFrame], models: [str], sheet: str) -
         
     df = (acc_inf/transform).round(1)  
     
-    df_styled = df.style.set_caption('Accumulated inflow ({}) deviation from Q_OBSE for the spring flod period.'.format(unit))\
-    .bar(subset=['OBSE', 'REF', 'TEMP1', 'TEMP2','LTM', 'NORMAL'], align='zero', color=['#23c6c8', '#f8ac59'])
+    if sheet[0:3] == 'LTM':
+        df_styled = df.style.set_caption('Accumulated inflow ({}) deviation from Q_OBSE for the spring flod period. Values are bold for catchments where we have had snow measurements.'.format(unit))\
+        .bar(subset=['OBSE', 'REF', 'TEMP1', 'TEMP2','LTM', 'NORMAL'], align='zero', color=['#23c6c8', '#f8ac59'])\
+        .set_properties(subset = pd.IndexSlice[bold_list, :], **{'font-weight' : 'bold'})
+    else:
+        df_styled = df.style.set_caption('Accumulated inflow ({}) deviation from Q_OBSE for the spring flod period.'.format(unit))\
+        .bar(subset=['OBSE', 'REF', 'TEMP1', 'TEMP2','LTM', 'NORMAL'], align='zero', color=['#23c6c8', '#f8ac59'])
        
     return df_styled
 
@@ -511,7 +533,7 @@ def box_plot(acc_perf_df: pd.DataFrame) -> None:
         flier.set(marker='o', markersize='5', markerfacecolor='black',markeredgewidth='0', markeredgecolor='black')
 
     ## Custom x-axis labels and ylabel
-    ax.set_xticklabels(['ref1', 'temp1', 'temp2', 'ltm'])
+    ax.set_xticklabels(['ref', 'temp1', 'temp2', 'ltm'])
     plt.ylabel('Accumulated deviation from Q_OBSE [%]')
 
     ## Remove top axes and right axes ticks
@@ -523,30 +545,79 @@ def box_plot(acc_perf_df: pd.DataFrame) -> None:
     # you can set whisker maximum and minimum, so that outliers are "fliers"
     
     
+    
+                 
+                       
+    
+def plot_perf_models(df: pd.DataFrame, sheet: str, perfType: str) -> None:
+    """Plot the performance dataframes for the chosen type of performance check (perfType)."""
+    
+    fig = plt.figure(figsize=(16,8))
+    ax = fig.add_subplot(1, 1, 1)
+    plt.gca().xaxis.set_tick_params(which='major', pad=20)
+    
+    if sheet[0:3] == 'LTM':
+        ax.plot(df['ltm'],'-', color='plum', linewidth=3.0, label = 'ltm {:.2f} +/- {:.2f}'.format(df['ltm'].mean(),df['ltm'].std()))
+        ax.plot(df['temp2'],':', color='red', linewidth=3.0, label = 'temp2 {:.2f} +/- {:.2f}'.format(df['temp2'].mean(),df['temp2'].std()))
+        ax.plot(df['temp1'],':', color='deepskyblue', linewidth=3.0, label = 'temp1 {:.2f} +/- {:.2f}'.format(df['temp1'].mean(),df['temp1'].std()))
+        ax.plot(df['ref'],'-.', color='green', alpha=0.8, linewidth=3.0, label = 'ref {:.2f} +/- {:.2f}'.format(df['ref'].mean(),df['ref'].std()))
+    else:
+        if sheet == 'Sver':
+            land = 'Sverige'
+        else:
+            land = 'Norge'
+        ax.plot(df['ltm'],'-', color='plum', linewidth=3.0, label = 'ltm {:.2f} +/- {:.2f}'.format(df.drop(land)['ltm'].mean(),df.drop(land)['ltm'].std()))
+        ax.plot(df['temp2'],':', color='red', linewidth=3.0, label = 'temp2 {:.2f} +/- {:.2f}'.format(df.drop(land)['temp2'].mean(),df.drop(land)['temp2'].std()))
+        ax.plot(df['temp1'],':', color='deepskyblue', linewidth=3.0, label = 'temp1 {:.2f} +/- {:.2f}'.format(df.drop(land)['temp1'].mean(),df.drop(land)['temp1'].std()))
+        ax.plot(df['ref'],'-.', color='green', alpha=0.8, linewidth=3.0, label = 'ref {:.2f} +/- {:.2f}'.format(df.drop(land)['ref'].mean(),df.drop(land)['ref'].std()))
+    
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles[::-1], labels[::-1], loc='best')
+    
+    plt.plot(df['ltm']*0, 'k', linewidth=3.0)
+    if max(abs(df['ltm'])) <= 1:
+        plt.plot(df['ltm']/df['ltm']*1, 'k', linewidth=3.0)
+    plt.gcf().autofmt_xdate()
+    ax = plt.gca()
+    ax.grid(True)
+    if perfType == 'R2':
+        plt.ylabel('Correlation with Q_OBSE (R2)')
+    else:
+        plt.ylabel('Accumulated deviation from Q_OBSE [%]')
+    plt.title('{} Performance'.format(perfType))
+    plt.show()
+    
+    
+    
+    
+    
+    
+    
+    
         
 ############# LOOP OVER ALL REGIONS/CATCHMENTS ####################################    
 
 
-def make_all(df_analysis_period: [pd.DataFrame], all_df: [pd.DataFrame], resources_analysis_period: [pd.DataFrame], all_resources: [pd.DataFrame], all_keys: [str], start_info_list: [str], end_info_list: [str], sheet: str, vhhQ_OBSE_list: [str], comments_list: [str], excluded_list: [str], file: str, df_analysis1_list: list, start_analysis1_list: list , df_analysis2_list: list, start_analysis2_list: list) -> None:
+def make_all(sheet, all_df, all_resources, analysis_periods_output, excel_output, excluded_keys, file) -> None:
     """This is the head function for showing the output for each region/catchment."""
+    spring_flod_start, info_chosen_start, spring_flod_end, info_chosen_end, early_adj_start, late_adj_start = analysis_periods_output
+    all_keys, idnr, start_list, end_list, excluded_list, vhhQ_OBSE_list, diff_temp_keys, comments_list, measured_list = excel_output
     
-    #Calculates here for all catchments, also those who were excluded
-    acc_perf_df, R2_perf_df = calc_performance(df_analysis_period, all_keys)
+
     
     if type(comments_list) == bool:
         comments_list = ['nan']*len(end_info_list)
-    if type(excluded_list) == bool:
-        excluded_list = ['nan']*len(end_info_list)
         
     
     #Read from excel the color of each week with snow adjustmets
-    Sheet = pd.read_excel(file,'Snow updates') 
-    adjusted_weeks = Sheet['Registrated Week:'].values
-    adjusted_weeks_colors = Sheet['Color:'].values
-    colors_adj = dict(zip(adjusted_weeks, adjusted_weeks_colors))
+    if sheet[0:3] != 'LTM':
+        Sheet = pd.read_excel(file,'Snow updates') 
+        adjusted_weeks = Sheet['Registrated Week:'].values
+        adjusted_weeks_colors = Sheet['Color:'].values
+        colors_adj = dict(zip(adjusted_weeks, adjusted_weeks_colors))
 
     
-    for df, df_long, df_r, df_r_long, key, start_info, end_info, vhh, comment, excluded, df1, start_info1, df2, start_info2 in zip(df_analysis_period, all_df, resources_analysis_period, all_resources, all_keys, start_info_list, end_info_list, vhhQ_OBSE_list, comments_list, excluded_list, df_analysis1_list, start_analysis1_list, df_analysis2_list, start_analysis2_list):
+    for df, df_r, key, sp_start, sp_end, start_info, end_info, vhh, comment, early_start, late_start in zip(all_df, all_resources, all_keys, spring_flod_start, spring_flod_end, info_chosen_start, info_chosen_end, vhhQ_OBSE_list, comments_list, early_adj_start, late_adj_start):
         
         print('\n\n')
         print('------------------------------------------------------------------------------------------------------------------------')
@@ -556,7 +627,7 @@ def make_all(df_analysis_period: [pd.DataFrame], all_df: [pd.DataFrame], resourc
         print(end_info)
         if len(str(comment)) >= 4:
             print('\nComment from Excel file: "{}"\n'.format(comment))
-        if excluded == 'X':
+        if key in excluded_keys:
             print('WARNING: THIS CATCHMENT IS EXCLUDED FROM THE ANALYSIS!')
        
         if str(vhh) == 'nan':
@@ -564,31 +635,26 @@ def make_all(df_analysis_period: [pd.DataFrame], all_df: [pd.DataFrame], resourc
         else:
             vhh = True
         
-        acc_perf = acc_perf_df.loc[[key]]
-        R2_perf = R2_perf_df.loc[[key]]
 
-        
         # PROGNOSIS PLOT
-        if key[0:3] == 'Reg':
-            plot_prognosis(file, df, key, sheet, colors_adj)
+        #if key[0:3] == 'Reg':
+        #    plot_prognosis(file, df[sp_start:sp_end], key, sheet, colors_adj)
             
         # PLOTS: ANALYSIS PERIOD
-        plot_resources(df_r, df, key, sheet)
-        subplot_acc_R2(df, key, sheet, vhh)
-        # printout
-        print('\nAccumulated performance [percentage deviation]: ref1: {:.2f}, temp1: {:.2f}, temp2: {:.2f}, ltm: {:.2f}'.format(acc_perf['ref1'][0], acc_perf['temp1'][0], acc_perf['temp2'][0], acc_perf['ltm'][0]))
-        print('Profile correlation performance [R2 value]: ]: ref1: {:.2f}, temp1: {:.2f}, temp2: {:.2f}, ltm: {:.2f}\n\n'.format(R2_perf['ref1'][0], R2_perf['temp1'][0], R2_perf['temp2'][0], R2_perf['ltm'][0]))
+        plot_resources(df_r[sp_start:sp_end], df[sp_start:sp_end], key, sheet)
+        subplot_acc_R2(df[sp_start:sp_end], key, sheet, vhh)
         
         if sheet[0:3] == 'LTM':
-            if type(df1) == pd.DataFrame:
-                subplot_acc_R2(df1, key, sheet, vhh, adjustment='first')
-            if type(df2) == pd.DataFrame:
-                subplot_acc_R2(df2, key, sheet, vhh, adjustment='second')
+            if early_start != df.index[0]:
+                subplot_acc_R2(df[early_start:sp_end], key, sheet, vhh, adjustment='first')
+            if late_start != sp_start:
+                subplot_acc_R2(df[late_start:sp_end], key, sheet, vhh, adjustment='second')
            
         
         #PLOTS: WHOLE PERIOD
-        plot_resources(df_r_long, df_long, key, sheet, long=True)
-        subplot_acc_R2(df_long, key, sheet, vhh, long=True)
+        end_long = df['refQ_N_FB'].dropna().index[-1]
+        plot_resources(df_r[:end_long], df[:end_long], key, sheet, long=True)
+        subplot_acc_R2(df[:end_long], key, sheet, vhh, long=True)
         
         print('\n\n\n')
         
@@ -604,6 +670,16 @@ def make_all(df_analysis_period: [pd.DataFrame], all_df: [pd.DataFrame], resourc
 def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, long: bool = False, adjustment: str = False) -> None:
     """This function makes a plot of the accumulated inflow and snow magazine and also the raw inflow, for each model."""
 
+    # calculating performance
+    obse = df['ltmQ_OBSE']
+    ref = df['refQ_N_FB']
+    temp1 = df['temp1Q_N_FB']
+    temp2 = df['temp2Q_N_FB']
+    ltm = df['ltmQ_N_FB']
+    acc_perf = acc_performance(obse, [ref, temp1, temp2, ltm])
+    R2_perf = R2_performance(obse, [ref, temp1, temp2, ltm])
+        
+    
     #Change font
     font = {'weight' : 'normal',
         'size'   : 14}
@@ -616,7 +692,7 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
     
     # ACC PLOT
     #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-    y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), df['ltmQ_N_FB'].cumsum().max(), df['temp2Q_N_FB'].cumsum().max(), df['ref1Q_N_FB'].cumsum().max())*1.03
+    y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), df['ltmQ_N_FB'].cumsum().max(), df['temp2Q_N_FB'].cumsum().max(), df['refQ_N_FB'].cumsum().max())*1.03
     color = 'k'
     if sheet[0:3] == 'LTM':
         ax1.set_ylabel('snow magasine SNOW_S [mm]', color=color)
@@ -627,7 +703,7 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
     ax1.plot(df['ltmSNOW_S'],'-', color='plum', linewidth=4.0, label = 'ltmSNOW_S')
     ax1.plot(df['temp2SNOW_S'],':', color='red', linewidth=3.0, label = 'temp2SNOW_S')
     ax1.plot(df['temp1SNOW_S'],':', color='deepskyblue', linewidth=2.0, label = 'temp1SNOW_S')
-    ax1.plot(df['ref1SNOW_S'],'-.', color='green', linewidth=3.0, label = 'ref1SNOW_S')
+    ax1.plot(df['refSNOW_S'],'-.', color='green', linewidth=3.0, label = 'refSNOW_S')
     ax1.tick_params(axis='y', labelcolor=color)
     #plt.gcf().autofmt_xdate()
     handles, labels = ax1.get_legend_handles_labels()
@@ -647,10 +723,10 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
     if vhh:
         ax1b.plot(df['vhhQ_OBSE'].cumsum()*transform,'-', color='grey', linewidth=4.0, label = 'vhhQ_OBSE')
     ax1b.plot(df['ltmQ_OBSE'].cumsum()*transform,'-k', linewidth=4.0, label = 'ltmQ_OBSE')
-    ax1b.plot(df['ltmQ_N_FB'].cumsum()*transform,'-', color='plum', linewidth=4.0, label='ltmQ_N_FB')
-    ax1b.plot(df['temp2Q_N_FB'].cumsum()*transform,':', color='red', linewidth=3.0, label = 'temp2Q_N_FB')
-    ax1b.plot(df['temp1Q_N_FB'].cumsum()*transform,':', color='deepskyblue', linewidth=2.0, label = 'temp1Q_N_FB')
-    ax1b.plot(df['ref1Q_N_FB'].cumsum()*transform,'-.', color='green', linewidth=3.0, label = 'ref1Q_N_FB')
+    ax1b.plot(df['ltmQ_N_FB'].cumsum()*transform,'-', color='plum', linewidth=4.0, label='ltmQ_N_FB: {:.2f}%'.format(acc_perf[3]))
+    ax1b.plot(df['temp2Q_N_FB'].cumsum()*transform,':', color='red', linewidth=3.0, label = 'temp2Q_N_FB: {:.2f}%'.format(acc_perf[1]))
+    ax1b.plot(df['temp1Q_N_FB'].cumsum()*transform,':', color='deepskyblue', linewidth=2.0, label = 'temp1Q_N_FB: {:.2f}%'.format(acc_perf[2]))
+    ax1b.plot(df['refQ_N_FB'].cumsum()*transform,'-.', color='green', linewidth=3.0, label = 'refQ_N_FB: {:.2f}%'.format(acc_perf[0]))
     ax1b.tick_params(axis='y', labelcolor=color)
     handles, labels = ax1b.get_legend_handles_labels()
     ax1b.legend(handles[::-1], labels[::-1], loc='center right')
@@ -669,10 +745,10 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
     if vhh:
         ax2.plot(df['vhhQ_OBSE'],'-', color='grey', linewidth=4.0, label = 'vhhQ_OBSE')
     ax2.plot(df['ltmQ_OBSE'],'-k', linewidth=4.0, label = 'ltmQ_OBSE')
-    ax2.plot(df['ltmQ_N_FB'],'-', color='plum', linewidth=4.0, label = 'ltmQ_N_FB')
-    ax2.plot(df['temp2Q_N_FB'],':', color='red', linewidth=3.0, label = 'temp2Q_N_FB')
-    ax2.plot(df['temp1Q_N_FB'],':', color='deepskyblue', linewidth=2.0, label = 'temp1Q_N_FB')
-    ax2.plot(df['ref1Q_N_FB'],'-.', color='green', linewidth=3.0, label = 'ref1Q_N_FB')
+    ax2.plot(df['ltmQ_N_FB'],'-', color='plum', linewidth=4.0, label = 'ltmQ_N_FB: {:.2f}'.format(R2_perf[3]))
+    ax2.plot(df['temp2Q_N_FB'],':', color='red', linewidth=3.0, label = 'temp2Q_N_FB: {:.2f}'.format(R2_perf[1]))
+    ax2.plot(df['temp1Q_N_FB'],':', color='deepskyblue', linewidth=2.0, label = 'temp1Q_N_FB: {:.2f}'.format(R2_perf[2]))
+    ax2.plot(df['refQ_N_FB'],'-.', color='green', linewidth=3.0, label = 'refQ_N_FB: {:.2f}'.format(R2_perf[0]))
     ax2.tick_params(axis='y', labelcolor=color)
     ax2.yaxis.tick_right()
     handles, labels = ax2.get_legend_handles_labels()
@@ -737,159 +813,108 @@ def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj
         return snowjust_dict, weeks_aft
         
     
-    if key[0:3] == 'Reg':
-        reg = '{}-{}'.format(sheet,key)
-        Sheet = pd.read_excel(file,reg) 
-        keys = Sheet['Nedslagsfelt:'].values
-        snowjust1 = Sheet['Snøjustert dato 1:'].values
-        snowjust2 = Sheet['Snøjustert dato 2:'].values
+    reg = '{}-{}'.format(sheet,key)
+    Sheet = pd.read_excel(file,reg) 
+    keys = Sheet['Nedslagsfelt:']
+    snowjust1 = Sheet['Snøjustert dato 1:']
+    snowjust2 = Sheet['Snøjustert dato 2:']
 
-        snowjust1_dict, weeks_aft1 = sort_adjustments(keys,snowjust1)
-        snowjust2_dict, weeks_aft2 = sort_adjustments(keys,snowjust2)
-        snowjust_dict = dict(snowjust1_dict)
-        snowjust_dict.update(snowjust2_dict)
-        weeks_aft = weeks_aft1+ weeks_aft2
-        
-        #Specifying timezone
-        tz = pytz.timezone('Etc/GMT-1')
-        year = datetime.date.today().year
-        #read_start = df.index[0]
-        read_start = dt.datetime(year, 1, 1)
-        read_end = df.index[-1] + pd.Timedelta(days=1)
+    snowjust1_dict, weeks_aft1 = sort_adjustments(keys,snowjust1)
+    snowjust2_dict, weeks_aft2 = sort_adjustments(keys,snowjust2)
+    snowjust_dict = dict(snowjust1_dict)
+    snowjust_dict.update(snowjust2_dict)
+    weeks_aft = weeks_aft1+ weeks_aft2
+    print('snowjust_dict = ', snowjust_dict)
 
-        #Making a wrapper to read in the series with
-        wrapper = ReadWrapper(start_time=read_start, end_time=read_end, tz=tz, read_from='SMG_PROD')
+    #Specifying timezone
+    tz = pytz.timezone('Etc/GMT-1')
+    read_start = df.index[0]
+    read_end = df.index[-1] + pd.Timedelta(days=1)
 
-        dotsQ = '......'
-        dotsSnow = '..........'
+    #Making a wrapper to read in the series with
+    wrapper = ReadWrapper(start_time=read_start, end_time=read_end, tz=tz, read_from='SMG_PROD')
 
-        smg_text_q = '.NFB{}-D1050A5S-0105'.format(dotsQ)
-        smg_text_s = '{}-D2003A5S-0105'.format(dotsSnow)
+    dotsQ = '......'
+    dotsSnow = '..........'
 
-        if weeks_aft:
-            weeks_bf = ['u{:02d}'.format(int(week[1:])-1) for week in weeks_aft]
-            q_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_aft]
-            q_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_bf]
-            s_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_aft]
-            s_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_bf]
-            
-            
-            #Reading series from SMG_PROD
-            q_aft = wrapper.read(q_keys_aft)
-            q_aft.columns = [weeks_aft]
-            q_bf = wrapper.read(q_keys_bf)
-            q_bf.columns = [weeks_bf]
-            s_aft = wrapper.read(s_keys_aft)
-            s_aft.columns = [weeks_aft]
-            s_bf = wrapper.read(s_keys_bf)
-            s_bf.columns = [weeks_bf]
+    smg_text_q = '.NFB{}-D1050A5S-0105'.format(dotsQ)
+    smg_text_s = '{}-D2003A5S-0105'.format(dotsSnow)
+
+    if weeks_aft:
+        weeks_bf = ['u{:02d}'.format(int(week[1:])-1) for week in weeks_aft]
+        q_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_aft]
+        q_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_bf]
+        s_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_aft]
+        s_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_bf]
+
+        #Reading series from SMG_PROD
+        q_aft = wrapper.read(q_keys_aft)
+        q_aft.columns = [weeks_aft]
+        q_bf = wrapper.read(q_keys_bf)
+        q_bf.columns = [weeks_bf]
+        s_aft = wrapper.read(s_keys_aft)
+        s_aft.columns = [weeks_aft]
+        s_bf = wrapper.read(s_keys_bf)
+        s_bf.columns = [weeks_bf]
 
 
-                
-            fig, ax1 = plt.subplots(figsize=(16,16))
-            plt.gca().xaxis.set_tick_params(which='major', pad=20)
-            
-            
-            ax1.plot(df['ltmSNOW_S'], ':', color='plum', linewidth=3.0, label = 'ltmSNOW_S')
-            ax1.set_ylabel('snow magazine [GWh]')
-            
-            ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-            ax2.plot(df['ltmQ_OBSE'].cumsum(),'-k', linewidth=4.0, label = 'ltmQ_OBSE')
-            ax2.plot(df['ltmQ_N_FB'].cumsum(),':', color='plum', linewidth=3.0, label='ltmQ_N_FB')
-            ax2.set_ylabel('accumulated inflow [GWh]')
-            
-            plt.title('{}: Prognosis week before and after snow updates (p.50)'.format(key))
-            
-            
-            print('\nModels updated in explicit weeek:')
-            for i in range(len(weeks_bf)):
-                print("{}: {}".format(weeks_aft[i],snowjust_dict[weeks_aft[i]]))
-                
-                
-                #ax1 Snow magazine:
-                #Plots here the observed using the start and end of the first prognosis
-                #Plotting the prognosis accumulated started from the ltmQ_N_FB
-                ax1.plot(s_bf[weeks_bf[i]], '-.', color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_bf[i])
-                ax1.plot(s_aft[weeks_aft[i]], color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_aft[i])
-                
-                #ax2 accumulated inflow:
-                #Plots here the observed using the start and end of the first prognosis
-                #Plotting the prognosis accumulated started from the ltmQ_N_FB
-                acc_q_bf = q_bf[weeks_bf[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_bf[weeks_bf[i]].dropna().index[0]]
-                acc_q_aft = q_aft[weeks_aft[i]].cumsum()+df['ltmQ_N_FB'].cumsum()[q_aft[weeks_aft[i]].dropna().index[0]]
-                ax2.plot(acc_q_bf, '-.', color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_bf[i])
-                ax2.plot(acc_q_aft, color=colors_adj[weeks_aft[i]], linewidth=3.0, label=weeks_aft[i])
-                
-                
-                #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-                y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
-                ax1.set_ylim(0,y_max)
-                ax2.set_ylim(0,y_max)
-                
-             
-            ax1.yaxis.tick_right()
-            handles, labels = ax1.get_legend_handles_labels()
-            ax1.legend(handles[::], labels[::], loc='upper left')
-            ax1.yaxis.set_label_position("left")
-                
-            ax2.yaxis.tick_right()
-            handles, labels = ax2.get_legend_handles_labels()
-            ax2.legend(handles[::], labels[::], loc='center right')
-            ax2.yaxis.set_label_position("right")
-            
-            #general
-            plt.gca().xaxis.set_minor_formatter(mdates.DateFormatter('u%V'))
-            plt.gca().xaxis.set_minor_locator(mdates.WeekdayLocator(byweekday=(0), interval=1))
-            plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b/%Y'))
-            plt.show()
 
-                
-                
+        fig, ax1 = plt.subplots(figsize=(16,16))
+        plt.gca().xaxis.set_tick_params(which='major', pad=20)
 
-                
-                       
-    
-def plot_perf_models(df: pd.DataFrame, sheet: str, perfType: str) -> None:
-    """Plot the performance dataframes for the chosen type of performance check (perfType)."""
-    
-    fig = plt.figure(figsize=(16,8))
-    ax = fig.add_subplot(1, 1, 1)
-    plt.gca().xaxis.set_tick_params(which='major', pad=20)
-    
-    if sheet[0:3] == 'LTM':
-        ax.plot(df['ltm'],'-', color='plum', linewidth=3.0, label = 'ltm {:.2f} +/- {:.2f}'.format(df['ltm'].mean(),df['ltm'].std()))
-        ax.plot(df['temp2'],':', color='red', linewidth=3.0, label = 'temp2 {:.2f} +/- {:.2f}'.format(df['temp2'].mean(),df['temp2'].std()))
-        ax.plot(df['temp1'],':', color='deepskyblue', linewidth=3.0, label = 'temp1 {:.2f} +/- {:.2f}'.format(df['temp1'].mean(),df['temp1'].std()))
-        ax.plot(df['ref1'],'-.', color='green', alpha=0.8, linewidth=3.0, label = 'ref1 {:.2f} +/- {:.2f}'.format(df['ref1'].mean(),df['ref1'].std()))
-    else:
-        if sheet == 'Sver':
-            land = 'Sverige'
-        else:
-            land = 'Norge'
-        ax.plot(df['ltm'],'-', color='plum', linewidth=3.0, label = 'ltm {:.2f} +/- {:.2f}'.format(df.drop(land)['ltm'].mean(),df.drop(land)['ltm'].std()))
-        ax.plot(df['temp2'],':', color='red', linewidth=3.0, label = 'temp2 {:.2f} +/- {:.2f}'.format(df.drop(land)['temp2'].mean(),df.drop(land)['temp2'].std()))
-        ax.plot(df['temp1'],':', color='deepskyblue', linewidth=3.0, label = 'temp1 {:.2f} +/- {:.2f}'.format(df.drop(land)['temp1'].mean(),df.drop(land)['temp1'].std()))
-        ax.plot(df['ref1'],'-.', color='green', alpha=0.8, linewidth=3.0, label = 'ref1 {:.2f} +/- {:.2f}'.format(df.drop(land)['ref1'].mean(),df.drop(land)['ref1'].std()))
-    
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles[::-1], labels[::-1], loc='best')
-    
-    plt.plot(df['ltm']*0, 'k', linewidth=3.0)
-    if max(abs(df['ltm'])) <= 1:
-        plt.plot(df['ltm']/df['ltm']*1, 'k', linewidth=3.0)
-    plt.gcf().autofmt_xdate()
-    ax = plt.gca()
-    ax.grid(True)
-    if perfType == 'R2':
-        plt.ylabel('Correlation with Q_OBSE (R2)')
-    else:
-        plt.ylabel('Accumulated deviation from Q_OBSE [%]')
-    plt.title('{} Performance'.format(perfType))
-    plt.show()
-    
-    
-    
+
+        ax1.plot(df['ltmSNOW_S'], ':', color='plum', linewidth=3.0, label = 'ltmSNOW_S')
+        ax1.set_ylabel('snow magazine [GWh]')
+
+        ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+        ax2.plot(df['ltmQ_OBSE'].cumsum(),'-k', linewidth=4.0, label = 'ltmQ_OBSE')
+        ax2.plot(df['ltmQ_N_FB'].cumsum(),':', color='plum', linewidth=3.0, label='ltmQ_N_FB')
+        ax2.set_ylabel('accumulated inflow [GWh]')
+
+        plt.title('{}: Prognosis week before and after snow updates (p.50)'.format(key))
+
+
+        print('\nModels updated in explicit weeek:')
+        for week_bf, week_aft in zip(weeks_bf, weeks_aft):
+            print("{}: {}".format(week_aft,snowjust_dict[week_aft]))
+
+            #ax1 Snow magazine:
+            #Plots here the observed using the start and end of the first prognosis
+            #Plotting the prognosis accumulated started from the ltmQ_N_FB
+            ax1.plot(s_bf[week_bf], '-.', color=colors_adj[week_aft], linewidth=3.0, label=week_bf[i])
+            ax1.plot(s_aft[week_aft], color=colors_adj[week_aft], linewidth=3.0, label=week_aft)
+
+            #ax2 accumulated inflow:
+            #Plots here the observed using the start and end of the first prognosis
+            #Plotting the prognosis accumulated started from the ltmQ_N_FB
+            acc_q_bf = q_bf[week_bf].cumsum()+df['ltmQ_N_FB'].cumsum()[q_bf[week_bf].dropna().index[0]]
+            acc_q_aft = q_aft[week_aft].cumsum()+df['ltmQ_N_FB'].cumsum()[q_aft[week_aft].dropna().index[0]]
+            ax2.plot(acc_q_bf, '-.', color=colors_adj[week_aft], linewidth=3.0, label=week_bf)
+            ax2.plot(acc_q_aft, color=colors_adj[week_aft], linewidth=3.0, label=week_aft)
+
+
+            #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
+            y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
+            ax1.set_ylim(0,y_max)
+            ax2.set_ylim(0,y_max)
+
+
+        ax1.yaxis.tick_right()
+        handles, labels = ax1.get_legend_handles_labels()
+        ax1.legend(handles[::], labels[::], loc='upper left')
+        ax1.yaxis.set_label_position("left")
+
+        ax2.yaxis.tick_right()
+        handles, labels = ax2.get_legend_handles_labels()
+        ax2.legend(handles[::], labels[::], loc='center right')
+        ax2.yaxis.set_label_position("right")
+
+        #general
+        plt.gca().xaxis.set_minor_formatter(mdates.DateFormatter('u%V'))
+        plt.gca().xaxis.set_minor_locator(mdates.WeekdayLocator(byweekday=(0), interval=1))
+        plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b/%Y'))
+        plt.show()
     
     
     
@@ -1004,17 +1029,19 @@ def pie_subplot_perf(acc_perf_df: pd.DataFrame, sheet: str, ref_model: str, mode
         down_better = 0
         down_worse = 0
         #Calculationg
-        for ref, mod in zip(ref_perf, mod_perf):
+        for [ref_key, ref], [mod_key, mod] in zip(ref_perf.items(), mod_perf.items()):
             listed = [abs(mod),abs(ref)]
             if ref+lim >= mod >= ref-lim:
                 no_edit += 1
             elif mod >= ref:
+                print(ref_key, ref, mod)
                 #checking if ltm was better than ref (1) or not (-1)
                 if listed.index(min(listed)) == 0:
                     up_better += 1
                 else:
                     up_worse += 1
             else:
+                print(ref_key, ref, mod)
                 #checking if ltm was better than ref (1) or not (-1)
                 if listed.index(min(listed)) == 0:
                     down_better += 1
