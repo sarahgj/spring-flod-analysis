@@ -544,6 +544,8 @@ def box_plot(acc_perf_df: pd.DataFrame) -> None:
     explintaiotion = 'Make a box and whisker plot for each column of x or each vector in sequence x. The box extends from the lower to upper quartile values of the data, with a line at the median. The whiskers extend from the box to show the range of the data. Flier points are those past the end of the whiskers.'
     # you can set whisker maximum and minimum, so that outliers are "fliers"
     
+    plt.show()
+    
     
     
                  
@@ -637,8 +639,8 @@ def make_all(sheet, all_df, all_resources, analysis_periods_output, excel_output
         
 
         # PROGNOSIS PLOT
-        #if key[0:3] == 'Reg':
-        #    plot_prognosis(file, df[sp_start:sp_end], key, sheet, colors_adj)
+        if key[0:3] == 'Reg':
+            plot_prognosis(file, df[sp_start:sp_end], key, sheet, colors_adj)
             
         # PLOTS: ANALYSIS PERIOD
         plot_resources(df_r[sp_start:sp_end], df[sp_start:sp_end], key, sheet)
@@ -782,9 +784,9 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
   
     
     
-def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj: [str]) -> None:
+def plot_prognosis(file: str, df: pd.DataFrame, region: str, sheet: str, colors_adj: [str]) -> None:
 
-    
+    print('key=',region)
     def sort_adjustments(keys : [str], snowjust: list) -> [dict, [str]]:
         
         ########## for sorting the week numbers ##################
@@ -813,7 +815,7 @@ def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj
         return snowjust_dict, weeks_aft
         
     
-    reg = '{}-{}'.format(sheet,key)
+    reg = '{}-{}'.format(sheet,region)
     Sheet = pd.read_excel(file,reg) 
     keys = Sheet['Nedslagsfelt:']
     snowjust1 = Sheet['Snøjustert dato 1:']
@@ -842,20 +844,20 @@ def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj
 
     if weeks_aft:
         weeks_bf = ['u{:02d}'.format(int(week[1:])-1) for week in weeks_aft]
-        q_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_aft]
-        q_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_q) for week in weeks_bf]
-        s_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_aft]
-        s_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,key,smg_text_s) for week in weeks_bf]
+        q_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,region,smg_text_q) for week in weeks_aft]
+        q_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,region,smg_text_q) for week in weeks_bf]
+        s_keys_aft = ['/{}/{}-{}{}'.format(week,sheet,region,smg_text_s) for week in weeks_aft]
+        s_keys_bf = ['/{}/{}-{}{}'.format(week,sheet,region,smg_text_s) for week in weeks_bf]
 
         #Reading series from SMG_PROD
         q_aft = wrapper.read(q_keys_aft)
-        q_aft.columns = [weeks_aft]
+        q_aft.columns = weeks_aft
         q_bf = wrapper.read(q_keys_bf)
-        q_bf.columns = [weeks_bf]
+        q_bf.columns = weeks_bf
         s_aft = wrapper.read(s_keys_aft)
-        s_aft.columns = [weeks_aft]
+        s_aft.columns = weeks_aft
         s_bf = wrapper.read(s_keys_bf)
-        s_bf.columns = [weeks_bf]
+        s_bf.columns = weeks_bf
 
 
 
@@ -871,17 +873,18 @@ def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj
         ax2.plot(df['ltmQ_N_FB'].cumsum(),':', color='plum', linewidth=3.0, label='ltmQ_N_FB')
         ax2.set_ylabel('accumulated inflow [GWh]')
 
-        plt.title('{}: Prognosis week before and after snow updates (p.50)'.format(key))
+        plt.title('{}: Prognosis week before and after snow updates (p.50)'.format(region))
 
 
         print('\nModels updated in explicit weeek:')
+        find_max = []
         for week_bf, week_aft in zip(weeks_bf, weeks_aft):
             print("{}: {}".format(week_aft,snowjust_dict[week_aft]))
-
+            
             #ax1 Snow magazine:
             #Plots here the observed using the start and end of the first prognosis
             #Plotting the prognosis accumulated started from the ltmQ_N_FB
-            ax1.plot(s_bf[week_bf], '-.', color=colors_adj[week_aft], linewidth=3.0, label=week_bf[i])
+            ax1.plot(s_bf[week_bf], '-.', color=colors_adj[week_aft], linewidth=3.0, label=week_bf)
             ax1.plot(s_aft[week_aft], color=colors_adj[week_aft], linewidth=3.0, label=week_aft)
 
             #ax2 accumulated inflow:
@@ -891,12 +894,15 @@ def plot_prognosis(file: str, df: pd.DataFrame, key: str, sheet: str, colors_adj
             acc_q_aft = q_aft[week_aft].cumsum()+df['ltmQ_N_FB'].cumsum()[q_aft[week_aft].dropna().index[0]]
             ax2.plot(acc_q_bf, '-.', color=colors_adj[week_aft], linewidth=3.0, label=week_bf)
             ax2.plot(acc_q_aft, color=colors_adj[week_aft], linewidth=3.0, label=week_aft)
+            
+            #Adding max of the accumulated prognosis to find_max list to set the ymax
+            find_max.append(max(acc_q_bf[-1],acc_q_aft[-1]))
 
 
-            #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
-            y_max = max(df['normQ_N_FB'].cumsum().max(), df['ltmQ_OBSE'].cumsum().max(), acc_q_bf.max().max(), acc_q_aft.max().max())*1.03
-            ax1.set_ylim(0,y_max)
-            ax2.set_ylim(0,y_max)
+        #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
+        y_max = max(df['normQ_N_FB'].cumsum()[-1], df['ltmQ_OBSE'].cumsum()[-1], max(find_max))*1.03
+        ax1.set_ylim(0,y_max)
+        ax2.set_ylim(0,y_max)
 
 
         ax1.yaxis.tick_right()
