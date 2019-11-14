@@ -641,6 +641,8 @@ def make_all(sheet, all_df, all_resources, analysis_periods_output, excel_output
         # PROGNOSIS PLOT
         if key[0:3] == 'Reg':
             plot_prognosis(file, df[sp_start:sp_end], key, sheet, colors_adj)
+        else:
+            plot_prognosis_sum(file, df[sp_start:sp_end], key, sheet, colors_adj)
             
         # PLOTS: ANALYSIS PERIOD
         plot_resources(df_r[sp_start:sp_end], df[sp_start:sp_end], key, sheet)
@@ -786,7 +788,6 @@ def subplot_acc_R2(df: pd.DataFrame, key: str, sheet: str, vhh: bool = False, lo
     
 def plot_prognosis(file: str, df: pd.DataFrame, region: str, sheet: str, colors_adj: [str]) -> None:
 
-    print('key=',region)
     def sort_adjustments(keys : [str], snowjust: list) -> [dict, [str]]:
         
         ########## for sorting the week numbers ##################
@@ -923,6 +924,97 @@ def plot_prognosis(file: str, df: pd.DataFrame, region: str, sheet: str, colors_
         plt.show()
     
     
+    
+    
+    
+def plot_prognosis_sum(file: str, df: pd.DataFrame, region: str, sheet: str, colors_adj: [str]) -> None:
+            
+    #Read weeks when snow updates were updates from excel document to plot one prognosis for each
+    Sheet = pd.read_excel(file,'Snow updates') 
+    weeks = Sheet['Registrated Week:']
+
+    #Specifying timezone
+    tz = pytz.timezone('Etc/GMT-1')
+    read_start = df.index[0]
+    read_end = df.index[-1] + pd.Timedelta(days=1)
+
+    #Making a wrapper to read in the series with
+    wrapper = ReadWrapper(start_time=read_start, end_time=read_end, tz=tz, read_from='SMG_PROD')
+    
+    if region == 'Norge':
+        q_keys = ['/{}/Norg-Norge.NFB.....-D1050A5S-0105'.format(week) for week in weeks]
+        s_keys = ['/{}/Norg-Norge.........-D2003A5S-0105'.format(week) for week in weeks]
+    else:
+        q_keys = ['/{}/Sver-Sverige.NFB...-D1050A5S-0105'.format(week) for week in weeks]
+        s_keys = ['/{}/Sver-Sverige.......-D2003A5S-0105'.format(week) for week in weeks]
+        
+    #Reading series from SMG_PROD
+    q = wrapper.read(q_keys)
+    q.columns = weeks
+    snow = wrapper.read(s_keys)
+    snow.columns = weeks
+
+    #Making plot
+    fig, ax1 = plt.subplots(figsize=(16,16))
+    plt.gca().xaxis.set_tick_params(which='major', pad=20)
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    find_max = []
+    for week in weeks:
+        
+        #ax1 Snow magazine:
+        #Plots here the observed using the start and end of the first prognosis
+        #Plotting the prognosis accumulated started from the ltmQ_N_FB
+        ax1.plot(snow[week], color=colors_adj[week], linewidth=3.0, label=week)
+
+        #ax2 accumulated inflow:
+        #Plots here the observed using the start and end of the first prognosis
+        #Plotting the prognosis accumulated started from the ltmQ_N_FB
+        acc_q = q[week].cumsum()+df['ltmQ_N_FB'].cumsum()[q[week].dropna().index[0]]
+        ax2.plot(acc_q, color=colors_adj[week], linewidth=3.0, label=week)
+
+        #Adding max of the accumulated prognosis to find_max list to set the ymax
+        find_max.append(acc_q[-1])
+        
+        
+
+    ax1.plot(df['normSNOW_S'],'--', color='moccasin', linewidth=4.0, label='ltmSNOW_S')
+    ax1.plot(df['ltmSNOW_S'], ':', color='plum', linewidth=4.0, label = 'ltmSNOW_S')
+    ax1.set_ylabel('snow magazine [GWh]')
+
+    ax2.plot(df['normQ_N_FB'].cumsum(),'--', color='moccasin', linewidth=4.0, label='ltmQ_N_FB')
+    ax2.plot(df['ltmQ_OBSE'].cumsum(),'-k', linewidth=4.0, label = 'ltmQ_OBSE')
+    ax2.plot(df['ltmQ_N_FB'].cumsum(),':', color='plum', linewidth=4.0, label='ltmQ_N_FB')
+    ax2.set_ylabel('accumulated inflow [GWh]')
+
+    plt.title('{}: Prognosis weeks of updates (p.50)'.format(region))
+
+
+    #Set scale for accumulated plot for regions so that its the same for snow and inflow [GWh]
+    y_max = max(df['normQ_N_FB'].cumsum()[-1], df['ltmQ_OBSE'].cumsum()[-1], max(find_max))*1.03
+    ax1.set_ylim(0,y_max)
+    ax2.set_ylim(0,y_max)
+
+
+    ax1.yaxis.tick_right()
+    handles, labels = ax1.get_legend_handles_labels()
+    ax1.legend(handles[::], labels[::], loc='upper left')
+    ax1.yaxis.set_label_position("left")
+
+    ax2.yaxis.tick_right()
+    handles, labels = ax2.get_legend_handles_labels()
+    ax2.legend(handles[::], labels[::], loc='center right')
+    ax2.yaxis.set_label_position("right")
+
+    #general
+    plt.gca().xaxis.set_minor_formatter(mdates.DateFormatter('u%V'))
+    plt.gca().xaxis.set_minor_locator(mdates.WeekdayLocator(byweekday=(0), interval=1))
+    plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b/%Y'))
+    plt.show()
+        
+        
+        
     
 def plot_resources(df_r: pd.DataFrame, df_q_s: pd.DataFrame, key: str, sheet: str, long: bool = False) -> None:
     """This function plots the resources for each reagion/catchment."""
