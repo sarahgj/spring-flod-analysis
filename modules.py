@@ -641,7 +641,7 @@ def make_all(sheet, all_df, all_resources, analysis_periods_output, excel_output
         # PROGNOSIS PLOT
         if key[0:3] == 'Reg':
             plot_prognosis(file, df[sp_start:sp_end], key, sheet, colors_adj)
-        else:
+        elif key[0:3] in ['Norge','Sverige']:
             plot_prognosis_sum(file, df[sp_start:sp_end], key, sheet, colors_adj)
             
         # PLOTS: ANALYSIS PERIOD
@@ -1116,8 +1116,8 @@ def pie_subplot_perf(acc_perf_df: pd.DataFrame, sheet: str, ref_model: str, mode
     
     
     fig, (ax1, ax2) = plt.subplots(1,2, figsize=(16,8))
-
-    for ax,lim in zip([ax1, ax2],[0.5, 5]):
+    lims = [0.1, 5]
+    for ax,lim in zip([ax1, ax2],lims):
         
         #Calculating number of models adjusted up/down and better/worse results to plot
         #Initializing
@@ -1126,25 +1126,33 @@ def pie_subplot_perf(acc_perf_df: pd.DataFrame, sheet: str, ref_model: str, mode
         up_worse = 0
         down_better = 0
         down_worse = 0
+        list2print = []#
+        indexes = []
         #Calculationg
         for [ref_key, ref], [mod_key, mod] in zip(ref_perf.items(), mod_perf.items()):
             listed = [abs(mod),abs(ref)]
             if ref+lim >= mod >= ref-lim:
                 no_edit += 1
             elif mod >= ref:
-                print(ref_key, ref, mod)
+                list2print.append(['{:.2f}'.format(ref), '{:.2f}'.format(mod)])
+                indexes.append(ref_key)
                 #checking if ltm was better than ref (1) or not (-1)
                 if listed.index(min(listed)) == 0:
                     up_better += 1
                 else:
                     up_worse += 1
             else:
-                print(ref_key, ref, mod)
+                list2print.append(['{:.2f}'.format(ref), '{:.2f}'.format(mod)])
+                indexes.append(ref_key)
                 #checking if ltm was better than ref (1) or not (-1)
                 if listed.index(min(listed)) == 0:
                     down_better += 1
                 else:
                     down_worse += 1
+                    
+        if lim == lims[0]:
+            index = 'Q diff > {}%'.format(lim)
+            df2print = pd.DataFrame(list2print, columns=(ref_model, model), index=indexes)#.set_index(index)
         
         ax.axis('equal')
 
@@ -1165,7 +1173,7 @@ def pie_subplot_perf(acc_perf_df: pd.DataFrame, sheet: str, ref_model: str, mode
                     bbox=dict(boxstyle='round', facecolor='green', edgecolor='none'),
                     textcoords='polar', ha='left', **kwargs)
         ax.set_title('Q diff > {}%'.format(lim))
-        
+       
     if model == 'temp1':
         plt.suptitle('Early Spring Snow Adjustments ({} vs. {})\n'.format(model, ref_model), size=20)
     elif model == 'temp2':
@@ -1173,8 +1181,12 @@ def pie_subplot_perf(acc_perf_df: pd.DataFrame, sheet: str, ref_model: str, mode
     elif model == 'ltm':
         plt.suptitle('Added Temperature Adjustments ({} vs. {})\n'.format(model, ref_model), size=20)
 
-
     plt.show()
+ 
+    if not (df2print.empty):
+        display(df2print)
+        print('\n\n')
+        
  
 
 
@@ -1197,8 +1209,17 @@ def copy_from_SMG(to_save: str, file: str) -> None:
     def read_excel(sheet: str, file: str) -> [str]:
 
         Sheet = pd.read_excel(file,sheet) 
-        keys = Sheet['Område:'].values
+        names = Sheet['Område:'].values
+        idnr = Sheet['ID:']
+
+        keys = []
+        for name, nr in zip(names,idnr):
+            if type(nr) != float:
+                keys.append('{}-{}'.format(name, nr[2:]))
+            else:
+                keys.append(name)
         return keys
+
 
     if to_save[0:3] == 'REF':
         model = 'REF'
@@ -1223,15 +1244,15 @@ def copy_from_SMG(to_save: str, file: str) -> None:
         ids_list = read_excel(sheet, file)
         
         for ids in ids_list:
-
+            
             if sheet in all_sheets[-2:]:
                 q = '/{}/'.format(model) + '{}-{}.NFB......'.format(sheet,ids)[0:19] + '-D1050A5R-0105' #inflow
                 s = '/{}/'.format(model) + '{}-{}..........'.format(sheet,ids)[0:19] + '-D2003A5R-0105' #snow water eqvialent (SWE)
             else:
                 q = '/HBV/{}-{}/{}/UPDAT/Q_N_FB'.format(sheet,ids,model) #inflow
                 s = '/HBV/{}-{}/{}/UPDAT/SNOW_S'.format(sheet,ids,model) #snow water eqvialent (SWE)
-
             keys = [q,s]
+            
             #Reading series from SMG_PROD
             df = wrapper.read(keys)
             df.columns = ['q','s']
